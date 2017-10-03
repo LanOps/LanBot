@@ -1,11 +1,8 @@
 {
   "profiles": {
     "NadekoBot": {
-      "commandName": "Project"
-    },
-    "Watch": {
-      "executablePath": "C:\\Program Files\\dotnet\\dotnet.exe",
-      "commandLineArgs": "watch run"
+      "commandName": "Project",
+      "workingDirectory": "C:\\Git\\bot2017\\src\\NadekoBot\\bin\\Debug\\netcoreapp1.0"
     }
   }
 }
