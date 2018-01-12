@@ -8,23 +8,33 @@ using System.Net.Http;
 using System.IO;
 using Newtonsoft.Json;
 using NadekoBot.Modules.LanOps.DTO;
-using NadekoBot.Attributes;
 using Discord;
+using NadekoBot.Common.Attributes;
+using Discord.WebSocket;
+using NadekoBot.Services;
 
 namespace NadekoBot.Modules.LanOps
 {
-
-    [NadekoModule("Lan", ">")]
-    public class LanOpsModule : NadekoTopLevelModule
+    [Group]
+    public class Lanops : NadekoTopLevelModule, INService
     {
         static List<WatchedLan> watchedLans = new List<WatchedLan>();
         const string configPath = "data/lanops.json";
+        readonly DiscordSocketClient _client;
+        bool running = false;
 
-        static LanOpsModule()
+        public Lanops(DiscordSocketClient c)
         {
+            _client = c;
             LoadConfig();
-
-            System.Threading.Tasks.Task.Run(WatchForNewAttendees);
+            lock (watchedLans)
+            {
+                if (!running)
+                {
+                    running = true;
+                    System.Threading.Tasks.Task.Run(WatchForNewAttendees);
+                }
+            }
         }
 
         private static void LoadConfig()
@@ -188,7 +198,7 @@ namespace NadekoBot.Modules.LanOps
             }
         }
 
-        private static async System.Threading.Tasks.Task WatchForNewAttendees()
+        private async System.Threading.Tasks.Task WatchForNewAttendees()
         {
             Dictionary<string, List<Participant>> lastCheck = new Dictionary<string, List<Participant>>();
             while(true)
@@ -210,7 +220,8 @@ namespace NadekoBot.Modules.LanOps
                                 var oldUserList = lastCheckList.Where(u => u.Id == user.Id);
                                 if (oldUserList.Count() == 0)
                                 {
-                                    var server = NadekoBot.Client.GetGuild(watch.ServerId);
+                                   
+                                    var server = _client.GetGuild(watch.ServerId);
                                     if (server == null)
                                         continue;
                                     var channel = (ITextChannel)server?.GetChannel(watch.ChannelId);
@@ -224,7 +235,7 @@ namespace NadekoBot.Modules.LanOps
                                 }
                                 else if(oldUserList.First().Seat != user.Seat)
                                 {
-                                    var server = NadekoBot.Client.GetGuild(watch.ServerId);
+                                    var server = _client.GetGuild(watch.ServerId);
                                     if (server == null)
                                         continue;
                                     var channel = (ITextChannel)server?.GetChannel(watch.ChannelId);

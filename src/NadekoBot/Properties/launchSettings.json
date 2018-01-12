@@ -2,7 +2,7 @@
   "profiles": {
     "NadekoBot": {
       "commandName": "Project",
-      "workingDirectory": "C:\\Git\\bot2017\\src\\NadekoBot\\bin\\Debug\\netcoreapp1.0"
+      "workingDirectory": "C:\\Git\\bot2017\\src\\NadekoBot\\bin\\Debug\\netcoreapp2.0"
     }
   }
 }
