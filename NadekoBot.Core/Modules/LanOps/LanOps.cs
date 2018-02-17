@@ -11,7 +11,7 @@ using NadekoBot.Modules.LanOps.DTO;
 using Discord;
 using NadekoBot.Common.Attributes;
 using Discord.WebSocket;
-using NadekoBot.Services;
+using NadekoBot.Core.Services;
 
 namespace NadekoBot.Modules.LanOps
 {
