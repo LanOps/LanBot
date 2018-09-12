@@ -33,10 +33,20 @@ namespace NadekoBot.Common.Replacements
         public ReplacementBuilder WithDefault(ICommandContext ctx) =>
             WithDefault(ctx.User, ctx.Channel, ctx.Guild as SocketGuild, (DiscordSocketClient)ctx.Client);
 
-        public ReplacementBuilder WithClient(DiscordSocketClient client)
+        public ReplacementBuilder WithMention(DiscordSocketClient client)
         {
             /*OBSOLETE*/
             _reps.TryAdd("%mention%", () => $"<@{client.CurrentUser.Id}>");
+            /*NEW*/
+            _reps.TryAdd("%bot.mention%", () => client.CurrentUser.Mention);
+            return this;
+        }
+
+        public ReplacementBuilder WithClient(DiscordSocketClient client)
+        {
+            WithMention(client);
+
+            /*OBSOLETE*/
             _reps.TryAdd("%shardid%", () => client.ShardId.ToString());
             _reps.TryAdd("%time%", () => DateTime.Now.ToString("HH:mm " + TimeZoneInfo.Local.StandardName.GetInitials()));
 
@@ -44,10 +54,11 @@ namespace NadekoBot.Common.Replacements
             _reps.TryAdd("%bot.status%", () => client.Status.ToString());
             _reps.TryAdd("%bot.latency%", () => client.Latency.ToString());
             _reps.TryAdd("%bot.name%", () => client.CurrentUser.Username);
-            _reps.TryAdd("%bot.mention%", () => client.CurrentUser.Mention);
             _reps.TryAdd("%bot.fullname%", () => client.CurrentUser.ToString());
             _reps.TryAdd("%bot.time%", () => DateTime.Now.ToString("HH:mm " + TimeZoneInfo.Local.StandardName.GetInitials()));
             _reps.TryAdd("%bot.discrim%", () => client.CurrentUser.Discriminator);
+            _reps.TryAdd("%bot.id%", () => client.CurrentUser.Id.ToString());
+            _reps.TryAdd("%bot.avatar%", () => client.CurrentUser.RealAvatarUrl()?.ToString());
 
             WithStats(client);
             return this;
@@ -115,7 +126,7 @@ namespace NadekoBot.Common.Replacements
             _reps.TryAdd("%userfull%", () => user.ToString());
             _reps.TryAdd("%username%", () => user.Username);
             _reps.TryAdd("%userdiscrim%", () => user.Discriminator);
-            _reps.TryAdd("%useravatar%", () => user.RealAvatarUrl());
+            _reps.TryAdd("%useravatar%", () => user.RealAvatarUrl()?.ToString());
             _reps.TryAdd("%id%", () => user.Id.ToString());
             _reps.TryAdd("%uid%", () => user.Id.ToString());
             /*NEW*/
@@ -123,7 +134,7 @@ namespace NadekoBot.Common.Replacements
             _reps.TryAdd("%user.fullname%", () => user.ToString());
             _reps.TryAdd("%user.name%", () => user.Username);
             _reps.TryAdd("%user.discrim%", () => user.Discriminator);
-            _reps.TryAdd("%user.avatar%", () => user.RealAvatarUrl());
+            _reps.TryAdd("%user.avatar%", () => user.RealAvatarUrl()?.ToString());
             _reps.TryAdd("%user.id%", () => user.Id.ToString());
             _reps.TryAdd("%user.created_time%", () => user.CreatedAt.ToString("HH:mm"));
             _reps.TryAdd("%user.created_date%", () => user.CreatedAt.ToString("dd.MM.yyyy"));
@@ -192,8 +203,10 @@ namespace NadekoBot.Common.Replacements
             var rng = new NadekoRandom();
             _regex.TryAdd(rngRegex, (match) =>
             {
-                int.TryParse(match.Groups["from"].ToString(), out var from);
-                int.TryParse(match.Groups["to"].ToString(), out var to);
+                if (!int.TryParse(match.Groups["from"].ToString(), out var from))
+                    from = 0;
+                if (!int.TryParse(match.Groups["to"].ToString(), out var to))
+                    to = 0;
 
                 if (from == 0 && to == 0)
                     return rng.Next(0, 11).ToString();

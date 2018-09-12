@@ -27,7 +27,11 @@ namespace NadekoBot.Core.Services
         RestartConfig RestartCommand { get; }
         string MiningProxyUrl { get; }
         string MiningProxyCreds { get; }
+        string VotesUrl { get; }
+        string VotesToken { get; }
         string BotListToken { get; }
+        string TwitchClientId { get; }
+        string RedisOptions { get; }
     }
 
     public class RestartConfig

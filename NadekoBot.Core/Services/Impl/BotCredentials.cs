@@ -1,12 +1,12 @@
-﻿using System;
-using System.Collections.Immutable;
-using System.IO;
-using System.Linq;
-using Discord;
+﻿using Discord;
 using Microsoft.Extensions.Configuration;
 using NadekoBot.Common;
 using Newtonsoft.Json;
 using NLog;
+using System;
+using System.Collections.Immutable;
+using System.IO;
+using System.Linq;
 
 namespace NadekoBot.Core.Services.Impl
 {
@@ -39,7 +39,12 @@ namespace NadekoBot.Core.Services.Impl
         public string MiningProxyUrl { get; }
         public string MiningProxyCreds { get; }
 
-        public string BotListToken { get; set; }
+        public string TwitchClientId { get; }
+
+        public string VotesUrl { get; }
+        public string VotesToken { get; }
+        public string BotListToken { get; }
+        public string RedisOptions { get; }
 
         public BotCredentials()
         {
@@ -60,7 +65,8 @@ namespace NadekoBot.Core.Services.Impl
                 if (string.IsNullOrWhiteSpace(Token))
                 {
                     _log.Error("Token is missing from credentials.json or Environment varibles. Add it and restart the program.");
-                    Console.ReadKey();
+                    if (!Console.IsInputRedirected)
+                        Console.ReadKey();
                     Environment.Exit(3);
                 }
                 OwnerIds = data.GetSection("OwnerIds").GetChildren().Select(c => ulong.Parse(c.Value)).ToImmutableArray();
@@ -75,7 +81,13 @@ namespace NadekoBot.Core.Services.Impl
                 CleverbotApiKey = data[nameof(CleverbotApiKey)];
                 MiningProxyUrl = data[nameof(MiningProxyUrl)];
                 MiningProxyCreds = data[nameof(MiningProxyCreds)];
+                if (!string.IsNullOrWhiteSpace(data[nameof(RedisOptions)]))
+                    RedisOptions = data[nameof(RedisOptions)];
+                else
+                    RedisOptions = "127.0.0.1,syncTimeout=3000";
 
+                VotesToken = data[nameof(VotesToken)];
+                VotesUrl = data[nameof(VotesUrl)];
                 BotListToken = data[nameof(BotListToken)];
 
                 var restartSection = data.GetSection(nameof(RestartCommand));
@@ -89,7 +101,7 @@ namespace NadekoBot.Core.Services.Impl
                     if (string.IsNullOrWhiteSpace(ShardRunCommand))
                         ShardRunCommand = "dotnet";
                     if (string.IsNullOrWhiteSpace(ShardRunArguments))
-                        ShardRunArguments = "run -c Release -- {0} {1}";
+                        ShardRunArguments = "run -c Release --no-build -- {0} {1}";
                 }
                 else //windows
                 {
@@ -105,10 +117,12 @@ namespace NadekoBot.Core.Services.Impl
                 else
                     ShardRunPort = int.Parse(portStr);
 
-                int.TryParse(data[nameof(TotalShards)], out var ts);
+                if (!int.TryParse(data[nameof(TotalShards)], out var ts))
+                    ts = 0;
                 TotalShards = ts < 1 ? 1 : ts;
 
-                ulong.TryParse(data[nameof(ClientId)], out ulong clId);
+                if (!ulong.TryParse(data[nameof(ClientId)], out ulong clId))
+                    clId = 0;
                 ClientId = clId;
 
                 CarbonKey = data[nameof(CarbonKey)];
@@ -119,6 +133,12 @@ namespace NadekoBot.Core.Services.Impl
                             string.IsNullOrWhiteSpace(dbSection["ConnectionString"])
                                 ? "Data Source=data/NadekoBot.db"
                                 : dbSection["ConnectionString"]);
+
+                TwitchClientId = data[nameof(TwitchClientId)];
+                if (string.IsNullOrWhiteSpace(TwitchClientId))
+                {
+                    TwitchClientId = "67w6z9i09xv2uoojdm9l0wsyph4hxo6";
+                }
             }
             catch (Exception ex)
             {
@@ -154,12 +174,10 @@ namespace NadekoBot.Core.Services.Impl
             public string MiningProxyCreds { get; set; } = null;
 
             public string BotListToken { get; set; }
-        }
-
-        private class DbModel
-        {
-            public string Type { get; set; }
-            public string ConnectionString { get; set; }
+            public string TwitchClientId { get; set; }
+            public string VotesToken { get; set; }
+            public string VotesUrl { get; set; }
+            public string RedisOptions { get; set; }
         }
 
         public bool IsOwner(IUser u) => OwnerIds.Contains(u.Id);

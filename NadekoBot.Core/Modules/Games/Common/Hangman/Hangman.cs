@@ -8,7 +8,7 @@ using NadekoBot.Extensions;
 
 namespace NadekoBot.Modules.Games.Common.Hangman
 {
-    public class Hangman : IDisposable
+    public sealed class Hangman : IDisposable
     {
         public string TermType { get; }
         public TermPool TermPool { get; }
@@ -164,7 +164,7 @@ namespace NadekoBot.Modules.Games.Common.Hangman
             OnLetterAlreadyUsed = null;
             _previousGuesses.Clear();
             _recentUsers.Clear();
-            _locker.Dispose();
+            // _locker.Dispose();
         }
     }
 }

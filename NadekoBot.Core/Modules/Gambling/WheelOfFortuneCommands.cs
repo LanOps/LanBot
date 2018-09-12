@@ -1,12 +1,13 @@
 ﻿using Discord;
 using NadekoBot.Common.Attributes;
 using NadekoBot.Extensions;
-using NadekoBot.Modules.Gambling.Common.WheelOfFortune;
 using NadekoBot.Core.Services;
 using System.Threading.Tasks;
-using Wof = NadekoBot.Modules.Gambling.Common.WheelOfFortune.WheelOfFortune;
+using Wof = NadekoBot.Modules.Gambling.Common.WheelOfFortune.WheelOfFortuneGame;
 using NadekoBot.Modules.Gambling.Services;
 using NadekoBot.Core.Modules.Gambling.Common;
+using NadekoBot.Core.Common;
+using System.Collections.Immutable;
 
 namespace NadekoBot.Modules.Gambling
 {
@@ -14,6 +15,16 @@ namespace NadekoBot.Modules.Gambling
     {
         public class WheelOfFortuneCommands : GamblingSubmodule<GamblingService>
         {
+            private static readonly ImmutableArray<string> _emojis = new string[] {
+            "⬆",
+            "↖",
+            "⬅",
+            "↙",
+            "⬇",
+            "↘",
+            "➡",
+            "↗" }.ToImmutableArray();
+
             private readonly ICurrencyService _cs;
             private readonly DbService _db;
 
@@ -23,68 +34,29 @@ namespace NadekoBot.Modules.Gambling
                 _db = db;
             }
 
-            public enum Allin { Allin = int.MinValue, All = int.MinValue }
-
             [NadekoCommand, Usage, Description, Aliases]
-            public Task WheelOfFortune(Allin _)
+            public async Task WheelOfFortune(ShmartNumber amount)
             {
-                long cur;
-                using (var uow = _db.UnitOfWork)
-                {
-                    cur = uow.DiscordUsers.GetUserCurrency(Context.User.Id);
-                }
-                return WheelOfFortune(cur);
-            }
-
-            [NadekoCommand, Usage, Description, Aliases]
-            public async Task WheelOfFortune(long amount)
-            {
-                if (!await CheckBetMandatory(amount))
+                if (!await CheckBetMandatory(amount).ConfigureAwait(false))
                     return;
 
-                if (!await _cs.RemoveAsync(Context.User.Id, "Wheel Of Fortune - bet", amount, gamble: true))
+                if (!await _cs.RemoveAsync(Context.User.Id, "Wheel Of Fortune - bet", amount, gamble: true).ConfigureAwait(false))
                 {
-                    await ReplyErrorLocalized("not_enough", _bc.BotConfig.CurrencySign).ConfigureAwait(false);
+                    await ReplyErrorLocalized("not_enough", Bc.BotConfig.CurrencySign).ConfigureAwait(false);
                     return;
                 }
 
-                var wof = new WheelOfFortune();
-
-                amount = (long)(amount * wof.Multiplier);
-
-                if (amount > 0)
-                    await _cs.AddAsync(Context.User.Id, "Wheel Of Fortune - won", amount, gamble: true).ConfigureAwait(false);
+                var result = await _service.WheelOfFortuneSpinAsync(Context.User.Id, amount).ConfigureAwait(false);
 
                 await Context.Channel.SendConfirmAsync(
-Format.Bold($@"{Context.User.ToString()} won: {amount + _bc.BotConfig.CurrencySign}
+Format.Bold($@"{Context.User.ToString()} won: {result.Amount + Bc.BotConfig.CurrencySign}
 
    『{Wof.Multipliers[1]}』   『{Wof.Multipliers[0]}』   『{Wof.Multipliers[7]}』
 
-『{Wof.Multipliers[2]}』      {wof.Emoji}      『{Wof.Multipliers[6]}』
+『{Wof.Multipliers[2]}』      {_emojis[result.Index]}      『{Wof.Multipliers[6]}』
 
      『{Wof.Multipliers[3]}』   『{Wof.Multipliers[4]}』   『{Wof.Multipliers[5]}』")).ConfigureAwait(false);
             }
-
-            //[NadekoCommand, Usage, Description, Aliases]
-            //[RequireContext(ContextType.Guild)]
-            //public async Task WofTest(int length = 1000)
-            //{
-            //    var mults = new Dictionary<float, int>();
-            //    for (int i = 0; i < length; i++)
-            //    {
-            //        var x = new Wof();
-            //        if (mults.ContainsKey(x.Multiplier))
-            //            ++mults[x.Multiplier];
-            //        else
-            //            mults.Add(x.Multiplier, 1);
-            //    }
-
-            //    var payout = mults.Sum(x => x.Key * x.Value);
-            //    await Context.Channel.SendMessageAsync($"Total bet: {length}\n" +
-            //        $"Paid out: {payout}\n" +
-            //        $"Total Payout: {payout / length:F3}x")
-            //        .ConfigureAwait(false);
-            //}
         }
     }
 }
