@@ -64,21 +64,13 @@ namespace NadekoBot.Modules.LanOps
 
         [NadekoCommand, Usage, Description, Aliases]
         [RequireContext(ContextType.Guild)]
-        public async Task Attendees(int lanNumber)
+        public async Task Attendees(string lanNumber)
         {
-            if (lanNumber == 0)
-                lanNumber = 27;
-
             var channel = (ITextChannel)Context.Channel;
-            if (lanNumber < 25)
-            {
-                await channel.SendMessageAsync("`Sorry pal, dont have that. Lan 25+ only. Blame the fact we have cool new shit`");
-                return;
-            }
 
             try
             {
-                var users = await GetAttendeeList((uint)lanNumber);
+                var users = await GetAttendeeList(lanNumber);
 
                 string msg = $"Attendee list for LanOps {lanNumber}\r\n";
                 for (int i = 0; i < users.Count(); i++)
@@ -101,14 +93,10 @@ namespace NadekoBot.Modules.LanOps
         [NadekoCommand, Usage, Description, Aliases]
         [RequireBotPermission(GuildPermission.Administrator)]
         [RequireContext(ContextType.Guild)]
-        public async Task Watch(int lanNumber)
+        public async Task Watch(string lanNumber)
         {
             var channel = (ITextChannel)Context.Channel;
-            if (lanNumber < 25)
-            {
-                await channel.SendMessageAsync("`Sorry pal, dont have that. Lan 25+ only. Blame the fact we have cool new shit`");
-                return;
-            }
+          
 
             var isWatching = watchedLans.Where(w => w.ChannelId == channel.Id && Context.Guild.Id == w.ServerId && lanNumber == w.LanId).Count() > 0;
 
@@ -119,7 +107,7 @@ namespace NadekoBot.Modules.LanOps
             }
             else
             {
-                watchedLans.Add(new WatchedLan() { ChannelId = channel.Id, ServerId = Context.Guild.Id, LanId = (uint)lanNumber });
+                watchedLans.Add(new WatchedLan() { ChannelId = channel.Id, ServerId = Context.Guild.Id, LanId = lanNumber });
                 await channel.SendMessageAsync($"`I am now watching LanOps {lanNumber} for new attendees.`");
                 SaveConfig();
                 return;
@@ -130,15 +118,9 @@ namespace NadekoBot.Modules.LanOps
         [NadekoCommand, Usage, Description, Aliases]
         [RequireBotPermission(GuildPermission.Administrator)]
         [RequireContext(ContextType.Guild)]
-        public async Task Stop(int lanNumber)
+        public async Task Stop(string lanNumber)
         {
             var channel = (ITextChannel)Context.Channel;
-
-            if (lanNumber < 25)
-            {
-                await channel.SendMessageAsync("`Sorry pal, dont have that. Lan 25+ only. Blame the fact we have cool new shit`");
-                return;
-            }
 
             var isWatching = watchedLans.Where(w => w.ChannelId == channel.Id && Context.Guild.Id == w.ServerId && lanNumber == w.LanId);
 
@@ -156,7 +138,7 @@ namespace NadekoBot.Modules.LanOps
             }
         }
 
-        private static async Task<List<Participant>> GetAttendeeList(uint lanNumber)
+        private static async Task<List<Participant>> GetAttendeeList(string lanNumber)
         {
             var client = new HttpClient();
             var result = await client.GetAsync($"http://www.lanops.co.uk/api/events/{lanNumber}/participants");

@@ -10,6 +10,6 @@ namespace NadekoBot.Modules.LanOps
     {
         public ulong ServerId { set; get; }
         public ulong ChannelId { set; get; }
-        public uint LanId { set; get; }
+        public string LanId { set; get; }
     }
 }
