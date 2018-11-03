@@ -500,12 +500,16 @@
   },
   "prune": {
     "Cmd": "prune clear",
-    "Desc": "`{0}prune` removes all Nadeko's messages in the last 100 messages. `{0}prune X` removes last `X` number of messages from the channel (up to 100). `{0}prune @Someone` removes all Someone's messages in the last 100 messages. `{0}prune @Someone X` removes last `X` number of 'Someone's' messages in the channel.",
+    "Desc": "`{0}prune` removes all Nadeko's messages in the last 100 messages. `{0}prune X` removes last `X` number of messages from the channel (up to 100). `{0}prune @Someone` removes all Someone's messages in the last 100 messages. `{0}prune @Someone X` removes last `X` number of 'Someone's' messages in the channel. You can use the `-s` / `--safe` parameter at the end to only prune messages that are not pinned.",
     "Usage": [
       "{0}prune",
+      "{0}prune -s",
       "{0}prune 5",
+      "{0}prune 5 --safe",
       "{0}prune @Someone",
-      "{0}prune @Someone X"
+      "{0}prune @Someone --safe",
+      "{0}prune @Someone X",
+      "{0}prune @Someone X -s"
     ]
   },
   "die": {
@@ -1760,7 +1764,7 @@
   },
   "hentai": {
     "Cmd": "hentai",
-    "Desc": "Shows a hentai image from a random website (gelbooru or danbooru or konachan or atfbooru or yandere) with a given tag. Tag is optional but preferred. Only 1 tag allowed.",
+    "Desc": "Shows a hentai image from a random website (gelbooru, danbooru, konachan or yandere) with a given tag. Tag is optional but preferred. Only 1 tag allowed.",
     "Usage": [
       "{0}hentai yuri"
     ]
