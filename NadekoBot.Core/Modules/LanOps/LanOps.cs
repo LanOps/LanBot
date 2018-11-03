@@ -189,58 +189,60 @@ namespace NadekoBot.Modules.LanOps
                 {
                     foreach (var watch in watchedLans.ToList())
                     {
-                        var newAttendeeList = await GetAttendeeList(watch.LanId);
-                        var key = $"{watch.ServerId}-{watch.ChannelId}-{watch.LanId}";
+                        Console.WriteLine(DateTime.Now.ToString() + " Checked for lan attendees for " + watch.LanId);
 
-                        if (!lastCheck.Keys.Contains(key))
-                            lastCheck.Add(key, newAttendeeList);
+                        var newAttendeeList = await GetAttendeeList(watch.LanId);
+
+                        if (!lastCheck.Keys.Contains(watch.LanId))
+                            lastCheck.Add(watch.LanId, newAttendeeList);
                         else
                         {
-                            var lastCheckList = lastCheck[key];
+                            var lastCheckList = lastCheck[watch.LanId];
                             foreach (var user in newAttendeeList)
                             {
                                 var oldUserList = lastCheckList.Where(u => u.Id == user.Id);
-                                if (oldUserList.Count() == 0)
-                                {
-                                   
-                                    var server = _client.GetGuild(watch.ServerId);
-                                    if (server == null)
-                                        continue;
-                                    var channel = (ITextChannel)server?.GetChannel(watch.ChannelId);
-                                    if (channel == null)
-                                        continue;
+                                    if (oldUserList.Count() == 0)
+                                    {
 
-                                    if(string.IsNullOrWhiteSpace(user.Seat))
-                                        await channel.SendMessageAsync($"New attendee: {user.User.SteamName}.".Replace("@", "\\@"));
-                                    else
-                                        await channel.SendMessageAsync($"New attendee: {user.User.SteamName} Seat: {user.Seat}.".Replace("@", "\\@"));
-                                }
-                                else if(oldUserList.First().Seat != user.Seat)
-                                {
-                                    var server = _client.GetGuild(watch.ServerId);
-                                    if (server == null)
-                                        continue;
-                                    var channel = (ITextChannel)server?.GetChannel(watch.ChannelId);
-                                    if (channel == null)
-                                        continue;
-                                    if(string.IsNullOrWhiteSpace(oldUserList.First().Seat))
-                                        await channel.SendMessageAsync($"Attendee {user.User.SteamName} has taken seat {user.Seat}.".Replace("@", "\\@"));
-                                    else
-                                        await channel.SendMessageAsync($"Attendee {user.User.SteamName} changed seat from {oldUserList.First().Seat} to {user.Seat}.".Replace("@", "\\@"));
+                                        var server = _client.GetGuild(watch.ServerId);
+                                        if (server == null)
+                                            continue;
+                                        var channel = (ITextChannel)server?.GetChannel(watch.ChannelId);
+                                        if (channel == null)
+                                            continue;
+
+                                        if (string.IsNullOrWhiteSpace(user.Seat))
+                                            await channel.SendMessageAsync($"New attendee: {user.User.SteamName}.".Replace("@", "\\@"));
+                                        else
+                                            await channel.SendMessageAsync($"New attendee: {user.User.SteamName} Seat: {user.Seat}.".Replace("@", "\\@"));
+                                    Console.WriteLine(JsonConvert.SerializeObject(newAttendeeList, Formatting.Indented));
+                                    }
+                                    else if (oldUserList.First().Seat != user.Seat)
+                                    {
+                                        var server = _client.GetGuild(watch.ServerId);
+                                        if (server == null)
+                                            continue;
+                                        var channel = (ITextChannel)server?.GetChannel(watch.ChannelId);
+                                        if (channel == null)
+                                            continue;
+                                        if (string.IsNullOrWhiteSpace(oldUserList.First().Seat))
+                                            await channel.SendMessageAsync($"Attendee {user.User.SteamName} has taken seat {user.Seat}.".Replace("@", "\\@"));
+                                        else
+                                            await channel.SendMessageAsync($"Attendee {user.User.SteamName} changed seat from {oldUserList.First().Seat} to {user.Seat}.".Replace("@", "\\@"));
+                                    Console.WriteLine(JsonConvert.SerializeObject(newAttendeeList, Formatting.Indented));
                                 }
                             }
 
-                            lastCheck.Remove(key);
-                            lastCheck.Add(key, newAttendeeList);
+                            lastCheck.Remove(watch.LanId);
+                            lastCheck.Add(watch.LanId, newAttendeeList);
                         }
                     }
 
                     
-                    Console.WriteLine(DateTime.Now.ToString("d") +  " Checked for lan attendees..");
                 }
                 catch(Exception e)
                 {
-                    Console.WriteLine(DateTime.Now.ToString("d") + "Failed checking for attendees.." + e.Message);
+                    Console.WriteLine(DateTime.Now.ToString() + "Failed checking for attendees.." + e.Message);
                 }
                 
                 await System.Threading.Tasks.Task.Delay(1000 * 60 * 30);
