@@ -12,6 +12,7 @@ using Discord;
 using NadekoBot.Common.Attributes;
 using Discord.WebSocket;
 using NadekoBot.Core.Services;
+using System.Threading;
 
 namespace NadekoBot.Modules.LanOps
 {
@@ -21,19 +22,15 @@ namespace NadekoBot.Modules.LanOps
         static List<WatchedLan> watchedLans = new List<WatchedLan>();
         const string configPath = "data/lanops.json";
         readonly DiscordSocketClient _client;
-        bool running = false;
+        readonly Semaphore semaphore = new Semaphore(1,1);
 
         public Lanops(DiscordSocketClient c)
         {
             _client = c;
             LoadConfig();
-            lock (watchedLans)
+            if (semaphore.WaitOne(5000))
             {
-                if (!running)
-                {
-                    running = true;
-                    System.Threading.Tasks.Task.Run(WatchForNewAttendees);
-                }
+                System.Threading.Tasks.Task.Run(WatchForNewAttendees);
             }
         }
 
@@ -142,7 +139,9 @@ namespace NadekoBot.Modules.LanOps
         {
             var client = new HttpClient();
             var result = await client.GetAsync($"http://www.lanops.co.uk/api/events/{lanNumber}/participants");
+
             var content = await result.Content.ReadAsStringAsync();
+            File.WriteAllText("c:\\temp\\lan" + Environment.TickCount + ".json", content);
 
             return JsonConvert.DeserializeObject<List<Participant>>(content).OrderBy(x=>x, new ParticiantComparer()).ToList();
         }
@@ -182,6 +181,7 @@ namespace NadekoBot.Modules.LanOps
 
         private async System.Threading.Tasks.Task WatchForNewAttendees()
         {
+            Console.WriteLine("Started Checking");
             Dictionary<string, List<Participant>> lastCheck = new Dictionary<string, List<Participant>>();
             while(true)
             {
@@ -189,10 +189,9 @@ namespace NadekoBot.Modules.LanOps
                 {
                     foreach (var watch in watchedLans.ToList())
                     {
-                        Console.WriteLine(DateTime.Now.ToString() + " Checked for lan attendees for " + watch.LanId);
-
+                        Console.WriteLine(DateTime.Now.ToString() + " Checked for lan attendees for " + watch.LanId + " on thread " + Thread.CurrentThread.ManagedThreadId);
                         var newAttendeeList = await GetAttendeeList(watch.LanId);
-
+                      //  Console.WriteLine(JsonConvert.SerializeObject(newAttendeeList, Formatting.Indented));
                         if (!lastCheck.Keys.Contains(watch.LanId))
                             lastCheck.Add(watch.LanId, newAttendeeList);
                         else
@@ -215,7 +214,7 @@ namespace NadekoBot.Modules.LanOps
                                             await channel.SendMessageAsync($"New attendee: {user.User.SteamName}.".Replace("@", "\\@"));
                                         else
                                             await channel.SendMessageAsync($"New attendee: {user.User.SteamName} Seat: {user.Seat}.".Replace("@", "\\@"));
-                                    Console.WriteLine(JsonConvert.SerializeObject(newAttendeeList, Formatting.Indented));
+                                  
                                     }
                                     else if (oldUserList.First().Seat != user.Seat)
                                     {
@@ -229,7 +228,7 @@ namespace NadekoBot.Modules.LanOps
                                             await channel.SendMessageAsync($"Attendee {user.User.SteamName} has taken seat {user.Seat}.".Replace("@", "\\@"));
                                         else
                                             await channel.SendMessageAsync($"Attendee {user.User.SteamName} changed seat from {oldUserList.First().Seat} to {user.Seat}.".Replace("@", "\\@"));
-                                    Console.WriteLine(JsonConvert.SerializeObject(newAttendeeList, Formatting.Indented));
+                                   
                                 }
                             }
 
@@ -245,9 +244,7 @@ namespace NadekoBot.Modules.LanOps
                     Console.WriteLine(DateTime.Now.ToString() + "Failed checking for attendees.." + e.Message);
                 }
                 
-                await System.Threading.Tasks.Task.Delay(1000 * 60 * 30);
-
-                //  await Task.Delay(1000 * 60 * 30);
+                await System.Threading.Tasks.Task.Delay(1000 * 60 * 15);
             }
         }
     }

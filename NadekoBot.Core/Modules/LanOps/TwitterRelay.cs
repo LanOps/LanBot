@@ -4,8 +4,6 @@ using NadekoBot.Modules;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Tweetinvi;
-using Tweetinvi.Models;
 
 namespace NadekoBot.Core.Modules.LanOps
 {
