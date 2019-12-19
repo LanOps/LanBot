@@ -1252,7 +1252,7 @@ namespace NadekoBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId")
+                    b.HasIndex("PatreonUserId")
                         .IsUnique();
 
                     b.ToTable("RewardedUsers");

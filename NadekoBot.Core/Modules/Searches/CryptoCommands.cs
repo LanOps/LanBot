@@ -36,12 +36,12 @@ namespace NadekoBot.Modules.Searches
 
                 if (crypto == null)
                 {
-                    await ReplyErrorLocalized("crypto_not_found").ConfigureAwait(false);
+                    await ReplyErrorLocalizedAsync("crypto_not_found").ConfigureAwait(false);
                     return;
                 }
 
 
-                await Context.Channel.EmbedAsync(new EmbedBuilder()
+                await ctx.Channel.EmbedAsync(new EmbedBuilder()
                     .WithOkColor()
                     .WithTitle($"{crypto.Name} ({crypto.Symbol})")
                     .WithUrl($"https://coinmarketcap.com/currencies/{crypto.Website_Slug}/")

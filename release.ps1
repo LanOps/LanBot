@@ -1,14 +1,5 @@
-function GitHub-Release($versionNumber) {
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-    $ErrorActionPreference = "Stop"
-
-    git pull
-    git push #making sure commit id exists on remote
-
-    $nl = [Environment]::NewLine
-    $env:NADEKOBOT_INSTALL_VERSION = $versionNumber
-    $gitHubApiKey = $env:GITHUB_API_KEY
-    $commitId = git rev-parse HEAD
+function Get-Changelog()
+{
     $lastTag = git describe --tags --abbrev=0
     $tag = "$lastTag..HEAD"
 
@@ -19,80 +10,45 @@ function GitHub-Release($versionNumber) {
 
     $cl2 = $clArr | where { "$_" -like "*Merge pull request*" }
     $changelog = "## Changes$nl$changelog"
-    if ($cl2 -ne $null) {
+    if ($null -ne $cl2) {
         $cl2 = [string]::join([Environment]::NewLine, $cl2)
         $changelog = $changelog + "$nl ## Pull Requests Merged$nl$cl2"
     }
-
-    Write-Host $changelog 
-
-    dotnet publish -c Release --runtime win7-x64
-
-    # set-alias sz "$env:ProgramFiles\7-Zip\7z.exe" 
-    # $source = "src\NadekoBot\bin\Release\PublishOutput\win7-x64" 
-    # $target = "src\NadekoBot\bin\Release\PublishOutput\NadekoBot.7z"
-
-    # sz 'a' '-mx3' $target $source
-
-    .\rcedit-x64.exe "src\NadekoBot\bin\Release\netcoreapp2.1\win7-x64\nadekobot.exe" --set-icon "src\NadekoBot\bin\Release\netcoreapp2.1\win7-x64\nadeko_icon.ico"
-
-    & "C:\Program Files (x86)\Inno Setup 5\iscc.exe" "/O+" ".\NadekoBot.iss"
-
-    $artifact = "NadekoBot-setup-$versionNumber.exe";
-
-    $auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($gitHubApiKey + ":x-oauth-basic"));
-    Write-Host $changelog
-    $result = GitHubMake-Release $versionNumber $commitId $TRUE $gitHubApiKey $auth "" "$changelog"
-    $releaseId = $result | Select -ExpandProperty id
-    $uploadUri = $result | Select -ExpandProperty upload_url
-    $uploadUri = $uploadUri -creplace '\{\?name,label\}', "?name=$artifact"
-    Write-Host $releaseId $uploadUri
-    $uploadFile = [Environment]::GetFolderPath('MyDocuments') + "\projekti\NadekoInstallerOutput\$artifact"
-
-    $uploadParams = @{
-        Uri         = $uploadUri;
-        Method      = 'POST';
-        Headers     = @{
-            Authorization = $auth;
-        }
-        ContentType = 'application/x-msdownload';
-        InFile      = $uploadFile
-    }
-
-    Write-Host 'Uploading artifact'
-    $result = Invoke-RestMethod @uploadParams
-    Write-Host 'Artifact upload finished.'
-    $result = GitHubMake-Release $versionNumber $commitId $FALSE $gitHubApiKey $auth "$releaseId"
-    git pull
-    Write-Host 'Done 🎉'
 }
 
-function GitHubMake-Release($versionNumber, $commitId, $draft, $gitHubApiKey, $auth, $releaseId, $body) {
-    $releaseId = If ($releaseId -eq "") {""} Else {"/" + $releaseId};
+function Build-Installer($versionNumber)
+{
+    $env:NADEKOBOT_INSTALL_VERSION = $versionNumber
 
-    Write-Host $versionNumber
-    Write-Host $commitId
-    Write-Host $draft
-    Write-Host $releaseId
-    Write-Host $body
+	dotnet clean
+    dotnet publish -c Release --runtime win7-x64
+    .\rcedit-x64.exe "src\NadekoBot\bin\Release\netcoreapp2.1\win7-x64\nadekobot.exe" --set-icon "src\NadekoBot\bin\Release\netcoreapp2.1\win7-x64\nadeko_icon.ico"
 
-    $releaseData = @{
-        tag_name         = $versionNumber;
-        target_commitish = $commitId;
-        name             = [string]::Format("NadekoBot v{0}", $versionNumber);
-        body             = $body;
-        draft            = $draft;
-        prerelease       = $releaseId -ne "";
-    }
+    & "iscc.exe" "/O+" ".\NadekoBot.iss"
 
-    $releaseParams = @{
-        Uri         = "https://api.github.com/repos/Kwoth/NadekoBot/releases" + $releaseId;
-        Method      = 'POST';
-        Headers     = @{
-            Authorization = $auth;
-        }
-        ContentType = 'application/json';
-        Body        = (ConvertTo-Json $releaseData -Compress)
-    }
-    return Invoke-RestMethod @releaseParams
+    $path = [Environment]::GetFolderPath('MyDocuments') + "\_projekti\NadekoInstallerOutput\$versionNumber\nadeko-setup-$versionNumber.exe";
+    Copy-Item -Path $path -Destination $dest -Force -ErrorAction Stop
+
+	return $path
+}
+
+function DigitaloceanRelease($versionNumber) {	
+
+	# pull the changes if they exist
+	git pull
+	# attempt to build teh installer
+	$path = Build-Installer $versionNumber
+
+	# get changelog before tagging
+    $changelog = Get-Changelog
+	# tag the release
+	# & (git tag, $tag)
+
+	# print out the changelog to the console
+    Write-Host $changelog 	
+
+	$jsonReleaseFile = "[{""VersionName"": ""$versionNumber"", ""DownloadLink"": ""https://nadeko-pictures.nyc3.digitaloceanspaces.com/releases/nadeko-setup-$versionNumber.exe"", ""Changelog"": ""$changelog""}]"
+
+	$releaseJsonOutPath = [Environment]::GetFolderPath('MyDocuments') + "\_projekti\NadekoInstallerOutput\$versionNumber\"
+	New-Item -Path $releaseJsonOutPath -Value $jsonReleaseFile -Name "releases.json" -Force
 }

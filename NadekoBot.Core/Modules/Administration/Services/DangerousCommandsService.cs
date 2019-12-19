@@ -25,11 +25,11 @@ SET ClubId=NULL,
 DELETE FROM ClubApplicants;
 DELETE FROM ClubBans;
 DELETE FROM Clubs;";
-        public const string DeleteUnusedCustomReactionsAndQuotes = @"DELETE FROM CustomReactions 
-WHERE UseCount=0 AND (DateAdded < date('now', '-7 day') OR DateAdded is null);
+//        public const string DeleteUnusedCustomReactionsAndQuotes = @"DELETE FROM CustomReactions 
+//WHERE UseCount=0 AND (DateAdded < date('now', '-7 day') OR DateAdded is null);
 
-DELETE FROM Quotes 
-WHERE UseCount=0 AND (DateAdded < date('now', '-7 day') OR DateAdded is null);";
+//DELETE FROM Quotes 
+//WHERE UseCount=0 AND (DateAdded < date('now', '-7 day') OR DateAdded is null);";
 
         private readonly DbService _db;
 
@@ -41,7 +41,7 @@ WHERE UseCount=0 AND (DateAdded < date('now', '-7 day') OR DateAdded is null);";
         public async Task<int> ExecuteSql(string sql)
         {
             int res;
-            using (var uow = _db.UnitOfWork)
+            using (var uow = _db.GetDbContext())
             {
                 res = await uow._context.Database.ExecuteSqlCommandAsync(sql);
             }
@@ -62,7 +62,7 @@ WHERE UseCount=0 AND (DateAdded < date('now', '-7 day') OR DateAdded is null);";
                 Results = new List<string[]>(),
             };
 
-            using (var uow = _db.UnitOfWork)
+            using (var uow = _db.GetDbContext())
             {
                 var conn = uow._context.Database.GetDbConnection();
                 using (var cmd = conn.CreateCommand())

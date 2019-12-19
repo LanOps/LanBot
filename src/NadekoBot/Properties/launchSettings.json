@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "NadekoBot": {
-      "commandName": "Project",
-      "workingDirectory": "C:\\Git\\LanBot\\src\\NadekoBot\\bin\\Debug\\netcoreapp2.1"
-    }
-  }
-}

@@ -14,13 +14,13 @@ namespace NadekoBot.Modules.Xp
 
             [NadekoCommand, Usage, Description, Aliases]
             [RequireContext(ContextType.Guild)]
-            [RequireUserPermission(GuildPermission.Administrator)]
+            [UserPerm(GuildPerm.Administrator)]
             public Task XpReset(IGuildUser user)
                 => XpReset(user.Id);
 
             [NadekoCommand, Usage, Description, Aliases]
             [RequireContext(ContextType.Guild)]
-            [RequireUserPermission(GuildPermission.Administrator)]
+            [UserPerm(GuildPerm.Administrator)]
             public async Task XpReset(ulong userId)
             {
                 var embed = new EmbedBuilder()
@@ -30,14 +30,14 @@ namespace NadekoBot.Modules.Xp
                 if (!await PromptUserConfirmAsync(embed).ConfigureAwait(false))
                     return;
 
-                _service.XpReset(Context.Guild.Id, userId);
+                _service.XpReset(ctx.Guild.Id, userId);
 
-                await ReplyConfirmLocalized("reset_user", userId).ConfigureAwait(false);
+                await ReplyConfirmLocalizedAsync("reset_user", userId).ConfigureAwait(false);
             }
 
             [NadekoCommand, Usage, Description, Aliases]
             [RequireContext(ContextType.Guild)]
-            [RequireUserPermission(GuildPermission.Administrator)]
+            [UserPerm(GuildPerm.Administrator)]
             public async Task XpReset()
             {
                 var embed = new EmbedBuilder()
@@ -47,9 +47,9 @@ namespace NadekoBot.Modules.Xp
                 if (!await PromptUserConfirmAsync(embed).ConfigureAwait(false))
                     return;
 
-                _service.XpReset(Context.Guild.Id);
+                _service.XpReset(ctx.Guild.Id);
 
-                await ReplyConfirmLocalized("reset_server").ConfigureAwait(false);
+                await ReplyConfirmLocalizedAsync("reset_server").ConfigureAwait(false);
             }
         }
     }

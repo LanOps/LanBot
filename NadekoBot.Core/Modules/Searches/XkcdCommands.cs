@@ -39,7 +39,7 @@ namespace NadekoBot.Modules.Searches
                                                       .WithAuthor(eab => eab.WithName(comic.Title).WithUrl($"{_xkcdUrl}/{comic.Num}").WithIconUrl("https://xkcd.com/s/919f27.ico"))
                                                       .AddField(efb => efb.WithName(GetText("comic_number")).WithValue(comic.Num.ToString()).WithIsInline(true))
                                                       .AddField(efb => efb.WithName(GetText("date")).WithValue($"{comic.Month}/{comic.Year}").WithIsInline(true));
-                            var sent = await Context.Channel.EmbedAsync(embed)
+                            var sent = await ctx.Channel.EmbedAsync(embed)
                                          .ConfigureAwait(false);
 
                             await Task.Delay(10000).ConfigureAwait(false);
@@ -49,7 +49,7 @@ namespace NadekoBot.Modules.Searches
                     }
                     catch (HttpRequestException)
                     {
-                        await ReplyErrorLocalized("comic_not_found").ConfigureAwait(false);
+                        await ReplyErrorLocalizedAsync("comic_not_found").ConfigureAwait(false);
                     }
                     return;
                 }
@@ -74,7 +74,7 @@ namespace NadekoBot.Modules.Searches
                                                       .WithAuthor(eab => eab.WithName(comic.Title).WithUrl($"{_xkcdUrl}/{num}").WithIconUrl("https://xkcd.com/s/919f27.ico"))
                                                       .AddField(efb => efb.WithName(GetText("comic_number")).WithValue(comic.Num.ToString()).WithIsInline(true))
                                                       .AddField(efb => efb.WithName(GetText("date")).WithValue($"{comic.Month}/{comic.Year}").WithIsInline(true));
-                        var sent = await Context.Channel.EmbedAsync(embed)
+                        var sent = await ctx.Channel.EmbedAsync(embed)
                                      .ConfigureAwait(false);
 
                         await Task.Delay(10000).ConfigureAwait(false);
@@ -84,7 +84,7 @@ namespace NadekoBot.Modules.Searches
                 }
                 catch (HttpRequestException)
                 {
-                    await ReplyErrorLocalized("comic_not_found").ConfigureAwait(false);
+                    await ReplyErrorLocalizedAsync("comic_not_found").ConfigureAwait(false);
                 }
             }
         }

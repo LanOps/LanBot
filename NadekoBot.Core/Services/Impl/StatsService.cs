@@ -23,7 +23,7 @@ namespace NadekoBot.Core.Services.Impl
         private readonly IBotCredentials _creds;
         private readonly DateTime _started;
 
-        public const string BotVersion = "2.28.4";
+        public const string BotVersion = "2.29.13";
         public string Author => "Kwoth#2560";
         public string Library => "Discord.Net";
 
@@ -218,7 +218,7 @@ namespace NadekoBot.Core.Services.Impl
                             content.Headers.Clear();
                             content.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
 
-                            using (await http.PostAsync(new Uri("https://selfstats.nadekobot.me/"), content).ConfigureAwait(false)) { }
+                            using (await http.PostAsync(new Uri("https://selfstats.nadeko.bot/"), content).ConfigureAwait(false)) { }
                         }
                     }
                 }

@@ -17,21 +17,22 @@ using NadekoBot.Extensions;
 using NadekoBot.Modules.Searches.Common;
 using NadekoBot.Modules.Searches.Common.Exceptions;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NLog;
 
 namespace NadekoBot.Modules.Searches.Services
 {
     public class StreamNotificationService : INService
     {
-#if !GLOBAL_NADEKO && !DEBUG
+#if !GLOBAL_NADEKO
         private bool _firstStreamNotifPass = true;
 #endif
         private readonly DbService _db;
         private readonly DiscordSocketClient _client;
         private readonly NadekoStrings _strings;
         private readonly IDataCache _cache;
-        private readonly HttpClient _http;
         private readonly Logger _log;
+        private readonly IHttpClientFactory _httpFactory;
         private readonly IBotCredentials _creds;
         private readonly Random _rng = new NadekoRandom();
         private readonly ConcurrentDictionary<
@@ -48,11 +49,10 @@ namespace NadekoBot.Modules.Searches.Services
             _strings = strings;
             _cache = cache;
             _creds = creds;
-            _http = factory.CreateClient();
-            _http.DefaultRequestHeaders.TryAddWithoutValidation("Client-ID", _creds.TwitchClientId);
             _log = LogManager.GetCurrentClassLogger();
+            _httpFactory = factory;
 
-#if !GLOBAL_NADEKO && !DEBUG
+#if !GLOBAL_NADEKO
             _followedStreams = bot.AllGuildConfigs
                 .SelectMany(x => x.FollowedStreams)
                 .GroupBy(x => (x.Type, x.Username))
@@ -82,11 +82,11 @@ namespace NadekoBot.Modules.Searches.Services
                             await _cache.ClearAllStreamData().ConfigureAwait(false);
                             // get a list of streams which are followed right now.
                             IEnumerable<FollowedStream> fss;
-                            using (var uow = _db.UnitOfWork)
+                            using (var uow = _db.GetDbContext())
                             {
                                 fss = uow.GuildConfigs.GetFollowedStreams()
                                     .Distinct(fs => (fs.Type, fs.Username.ToLowerInvariant()));
-                                uow.Complete();
+                                uow.SaveChanges();
                             }
                             // get new statuses for those streams
                             var newStatuses = (await Task.WhenAll(fss.Select(f => GetStreamStatus(f.Type, f.Username, false))).ConfigureAwait(false))
@@ -167,12 +167,12 @@ namespace NadekoBot.Modules.Searches.Services
         public int ClearAllStreams(ulong guildId)
         {
             int count;
-            using (var uow = _db.UnitOfWork)
+            using (var uow = _db.GetDbContext())
             {
                 var gc = uow.GuildConfigs.ForId(guildId, set => set.Include(x => x.FollowedStreams));
                 count = gc.FollowedStreams.Count;
                 gc.FollowedStreams.Clear();
-                uow.Complete();
+                uow.SaveChanges();
             }
             return count;
         }
@@ -182,63 +182,78 @@ namespace NadekoBot.Modules.Searches.Services
             string url = string.Empty;
             Type type = null;
             username = username.ToLowerInvariant();
-            switch (t)
+            using (var http = _httpFactory.CreateClient())
             {
-                case FollowedStream.FType.Twitch:
-                    url = $"https://api.twitch.tv/kraken/streams/{Uri.EscapeUriString(username)}";
-                    type = typeof(TwitchResponse);
-                    break;
-                case FollowedStream.FType.Smashcast:
-                    url = $"https://api.smashcast.tv/user/{username}";
-                    type = typeof(SmashcastResponse);
-                    break;
-                case FollowedStream.FType.Mixer:
-                    url = $"https://mixer.com/api/v1/channels/{username}";
-                    type = typeof(MixerResponse);
-                    break;
-                case FollowedStream.FType.Picarto:
-                    url = $"https://api.picarto.tv/v1/channel/name/{username}";
-                    type = typeof(PicartoResponse);
-                    break;
-                default:
-                    break;
-            }
-            try
-            {
-                if (checkCache && _cache.TryGetStreamData(url, out string dataStr))
-                    return JsonConvert.DeserializeObject<StreamResponse>(dataStr);
-
-                var response = await _http.GetAsync(url).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)
-                    throw new StreamNotFoundException($"Stream Not Found: {username} [{type.Name}]");
-                var responseStr = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var data = JsonConvert.DeserializeObject(responseStr, type) as IStreamResponse;
-                data.ApiUrl = url;
-                var sr = new StreamResponse
+                switch (t)
                 {
-                    ApiUrl = data.ApiUrl,
-                    Followers = data.Followers,
-                    Game = data.Game,
-                    Icon = data.Icon,
-                    Live = data.Live,
-                    Name = data.Name ?? username.ToLowerInvariant(),
-                    StreamType = data.StreamType,
-                    Title = data.Title,
-                    Viewers = data.Viewers,
-                    Preview = data.Preview,
-                };
-                await _cache.SetStreamDataAsync(url, JsonConvert.SerializeObject(sr)).ConfigureAwait(false);
-                return sr;
-            }
-            catch (StreamNotFoundException ex)
-            {
-                _log.Warn(ex.Message);
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _log.Warn(ex.Message);
-                return null;
+                    case FollowedStream.FType.Twitch:
+
+                        http.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/vnd.twitchtv.v5");
+                        http.DefaultRequestHeaders.TryAddWithoutValidation("Client-ID", _creds.TwitchClientId);
+
+                        var twitchurl = $"https://api.twitch.tv/kraken/users?login={Uri.EscapeUriString(username)}";
+                        var fullUseridData = await http.GetStringAsync(twitchurl);
+                        var data = JObject.Parse(fullUseridData)["users"].ToArray().FirstOrDefault();
+                        if(data is default(JToken))
+                        {
+                            throw new StreamNotFoundException($"Stream Not Found: {username} [{type.Name}]");
+                        }
+
+                        url = $"https://api.twitch.tv/kraken/streams/{ data["_id"] }";
+                        type = typeof(TwitchResponse);
+                        break;
+                    case FollowedStream.FType.Smashcast:
+                        url = $"https://api.smashcast.tv/user/{username}";
+                        type = typeof(SmashcastResponse);
+                        break;
+                    case FollowedStream.FType.Mixer:
+                        url = $"https://mixer.com/api/v1/channels/{username}";
+                        type = typeof(MixerResponse);
+                        break;
+                    case FollowedStream.FType.Picarto:
+                        url = $"https://api.picarto.tv/v1/channel/name/{username}";
+                        type = typeof(PicartoResponse);
+                        break;
+                    default:
+                        break;
+                }
+                try
+                {
+                    if (checkCache && _cache.TryGetStreamData(url, out string dataStr))
+                        return JsonConvert.DeserializeObject<StreamResponse>(dataStr);
+
+                    var response = await http.GetAsync(url).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode)
+                        throw new StreamNotFoundException($"Stream Not Found: {username} [{type.Name}]");
+                    var responseStr = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var data = JsonConvert.DeserializeObject(responseStr, type) as IStreamResponse;
+                    data.ApiUrl = url;
+                    var sr = new StreamResponse
+                    {
+                        ApiUrl = data.ApiUrl,
+                        Followers = data.Followers,
+                        Game = data.Game,
+                        Icon = data.Icon,
+                        Live = data.Live,
+                        Name = data.Name ?? username.ToLowerInvariant(),
+                        StreamType = data.StreamType,
+                        Title = data.Title,
+                        Viewers = data.Viewers,
+                        Preview = data.Preview,
+                    };
+                    await _cache.SetStreamDataAsync(url, JsonConvert.SerializeObject(sr)).ConfigureAwait(false);
+                    return sr;
+                }
+                catch (StreamNotFoundException ex)
+                {
+                    _log.Warn(ex.Message);
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    _log.Warn(ex.Message);
+                    return null;
+                }
             }
         }
 
@@ -246,7 +261,7 @@ namespace NadekoBot.Modules.Searches.Services
         {
             name = name.ToLowerInvariant();
             IEnumerable<FollowedStream> streams;
-            using (var uow = _db.UnitOfWork)
+            using (var uow = _db.GetDbContext())
             {
                 streams = uow.GuildConfigs
                     .ForId(guildId, set => set.Include(x => x.FollowedStreams))
@@ -258,7 +273,7 @@ namespace NadekoBot.Modules.Searches.Services
 
                 stream.Message = message;
 
-                uow.Complete();
+                uow.SaveChanges();
             }
             var newVal = new ConcurrentHashSet<(ulong GuildId, FollowedStream fs)>(streams.Select(x => (x.GuildId, x)));
             _followedStreams.AddOrUpdate((type, name),
@@ -270,13 +285,13 @@ namespace NadekoBot.Modules.Searches.Services
         public bool ToggleStreamOffline(ulong guildId)
         {
             bool val;
-            using (var uow = _db.UnitOfWork)
+            using (var uow = _db.GetDbContext())
             {
                 var config = uow.GuildConfigs
                     .ForId(guildId, set => set);
 
                 val = config.NotifyStreamOffline = !config.NotifyStreamOffline;
-                uow.Complete();
+                uow.SaveChanges();
             }
             if (val)
             {
