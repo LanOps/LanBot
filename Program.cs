@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
@@ -89,40 +90,47 @@ while (true)
             if (matchChannel.Success)
             {
                 Console.WriteLine($"Checking {channel.Name}");
-                var newAttendeeList = await LanOps.GetAttendeeList(channel.Name);
-                if (!lastCheck.Keys.Contains(channel.Name))
-                    lastCheck.Add(channel.Name, newAttendeeList);
-                else
+                try
                 {
-                    var lastCheckList = lastCheck[channel.Name];
-                    foreach (var userGroup in newAttendeeList.GroupBy(u=>u.Username))
+                    var newAttendeeList = await LanOps.GetAttendeeList(channel.Name);
+                    if (!lastCheck.Keys.Contains(channel.Name))
+                        lastCheck.Add(channel.Name, newAttendeeList);
+                    else
                     {
-                        var oldSeats = string.Join(", ",lastCheckList.Where(u => u.Username == userGroup.First().Username).Select(u => u.Seat).Where(s => !string.IsNullOrEmpty(s)).OrderBy(s=>s));
-                        var newSeats = string.Join(", ", userGroup.Select(u => u.Seat).Where(s => !string.IsNullOrEmpty(s)).OrderBy(s => s));
-                        if (!lastCheckList.Where(u=>u.Username == userGroup.First().Username).Any())
+                        var lastCheckList = lastCheck[channel.Name];
+                        foreach (var userGroup in newAttendeeList.GroupBy(u => u.Username))
                         {
-                            foreach (var user in userGroup)
+                            var oldSeats = string.Join(", ", lastCheckList.Where(u => u.Username == userGroup.First().Username).Select(u => u.Seat).Where(s => !string.IsNullOrEmpty(s)).OrderBy(s => s));
+                            var newSeats = string.Join(", ", userGroup.Select(u => u.Seat).Where(s => !string.IsNullOrEmpty(s)).OrderBy(s => s));
+                            if (!lastCheckList.Where(u => u.Username == userGroup.First().Username).Any())
                             {
-                                if (string.IsNullOrWhiteSpace(newSeats))
-                                    await channel.SendMessageAsync($"New attendee: {user.Username}.".Replace("@", "\\@"));
+                                foreach (var user in userGroup)
+                                {
+                                    if (string.IsNullOrWhiteSpace(newSeats))
+                                        await channel.SendMessageAsync($"New attendee: {user.Username}.".Replace("@", "\\@"));
+                                    else
+                                        await channel.SendMessageAsync($"New attendee: {user.Username} Seat{(newSeats.Length > 0 ? "s" : "")}: {newSeats}.".Replace("@", "\\@"));
+                                    changed = true;
+                                }
+                            }
+                            else if (newSeats != oldSeats)
+                            {
+
+                                if (string.IsNullOrWhiteSpace(oldSeats))
+                                    await channel.SendMessageAsync($"Attendee {userGroup.First().Username} has taken seat{(newSeats.Length > 0 ? "s" : "")} {newSeats}.".Replace("@", "\\@"));
                                 else
-                                    await channel.SendMessageAsync($"New attendee: {user.Username} Seat{(newSeats.Length > 0 ? "s" : "")}: {newSeats}.".Replace("@", "\\@"));
+                                    await channel.SendMessageAsync($"Attendee {userGroup.First().Username} changed seats from {oldSeats} to {newSeats}.".Replace("@", "\\@"));
                                 changed = true;
                             }
                         }
-                        else if (newSeats != oldSeats)
-                        {
 
-                            if (string.IsNullOrWhiteSpace(oldSeats))
-                                await channel.SendMessageAsync($"Attendee {userGroup.First().Username} has taken seat{(newSeats.Length>0?"s":"")} {newSeats}.".Replace("@", "\\@"));
-                            else 
-                                await channel.SendMessageAsync($"Attendee {userGroup.First().Username} changed seats from {oldSeats} to {newSeats}.".Replace("@", "\\@"));
-                            changed = true;
-                        }
+                        lastCheck.Remove(channel.Name);
+                        lastCheck.Add(channel.Name, newAttendeeList);
                     }
-
-                    lastCheck.Remove(channel.Name);
-                    lastCheck.Add(channel.Name, newAttendeeList);
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex);
                 }
             }
         }
