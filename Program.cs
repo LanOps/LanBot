@@ -104,14 +104,11 @@ while (true)
                             var newSeats = string.Join(", ", userGroup.Select(u => u.Seat).Where(s => !string.IsNullOrEmpty(s)).OrderBy(s => s));
                             if (!lastCheckList.Where(u => u.Username == userGroup.First().Username).Any())
                             {
-                                foreach (var user in userGroup)
-                                {
                                     if (string.IsNullOrWhiteSpace(newSeats))
-                                        await channel.SendMessageAsync($"New attendee: {user.Username}.".Replace("@", "\\@"));
+                                        await channel.SendMessageAsync($"New attendee: {userGroup.First().Username}.".Replace("@", "\\@"));
                                     else
-                                        await channel.SendMessageAsync($"New attendee: {user.Username} Seat{(newSeats.Length > 0 ? "s" : "")}: {newSeats}.".Replace("@", "\\@"));
+                                        await channel.SendMessageAsync($"New attendee: {userGroup.First().Username} Seat{(newSeats.Length > 0 ? "s" : "")}: {newSeats}.".Replace("@", "\\@"));
                                     changed = true;
-                                }
                             }
                             else if (newSeats != oldSeats)
                             {
